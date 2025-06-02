@@ -21,7 +21,7 @@ logging.basicConfig(
 async def send_message(request: Request):
     data = await request.json()
     msg = data["message"]
-    sender_id = data["sender"]
+    sender_id = data.get("user_id", "unknown")
     client_ip = request.client.host
 
     messages.append((msg, sender_id))
@@ -38,3 +38,5 @@ def receive_message(client_id: str):
             logging.info(f"📤 配信: to={client_id}, message='{msg}'")
             return {"message": msg}
     return {"message": None}
+
+# もし暴力的な内容があったら除外してください

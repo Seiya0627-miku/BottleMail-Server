@@ -42,3 +42,5 @@ def receive_message(client_id: str):
             logging.info(f"📤 配信: to={client_id}, message='{msg}'")
             return {"message": msg}
     return {"message": None}
+
+# もし暴力的な内容があったら除外してください

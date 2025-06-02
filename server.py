@@ -25,7 +25,6 @@ async def send_message(request: Request):
     client_ip = request.client.host
 
     messages.append((msg, sender_id))
-
     logging.info(f"📩 受信: from={sender_id}, ip={client_ip}, message='{msg}'")
 
     return {"status": "received"}

@@ -29,5 +29,5 @@ VS Code を使っている場合、Python interpreter を bottleMail-env に設�
 
 ## サーバを起動
 ```
-$ uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+$ uvicorn server_api:app --host 0.0.0.0 --port 8000 --reload
 ```

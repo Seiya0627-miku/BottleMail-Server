@@ -1,12 +1,13 @@
 {
-    "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224": {
-        "id": "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224",
-        "title": "タイトル",
-        "sender_id": "user-fb5f58dbe91e",
+    "letter-e227beeb-ae17-4e65-b3d9-5d843830d62f": {
+        "id": "letter-e227beeb-ae17-4e65-b3d9-5d843830d62f",
+        "date_sent": "2025-06-03T06:05:26Z",
+        "date_received": "2025-06-03T06:05:41Z",
+        "sender_id": "user-1736df9f5387",
         "recipient_id": [
-            "waiting"
+            "user-fb5f58dbe91e"
         ],
-        "date_sent": "2025-06-03 01:59:45Z",
-        "content": "こんな感じに"
+        "title": "iPadのアプリから送った",
+        "content": "スマホ側で受信して読めるようになったよー"
     }
 }

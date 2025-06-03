@@ -48,22 +48,25 @@ Expo Goのインストールごとに付与されるユニークなIDでユー�
 各ユーザには以下の情報が紐づけられる。これらの情報は`users.json`に保存される。
 ```json
   "user-123456789abc": {
+    "id": "user-123456789abc", // データの自己完結性のためにIDも格納
     "preferences": { "emotion": "明るい", "custom": "政治の話はやだ" },
+    "unopenedLetterIds": ["letter-id-new-1", "letter-id-new-2"],
     "receivedLetterIds": ["letter_xyz", "letter_pqr"],
-    "sentLetterIds": ["letter_123"]
+    "sentLetterIds": ["letter_123"],
+    "registered_at": "YYYY-MM-DDTHH:MM:SSZ"
   },
 ```
 
 各ユーザが送信、受信してきた手紙はユニークな手紙IDで管理する。手紙本体は`letters.json`に保存される。
 ```json
     "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224": {
-        "id": "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224",
+        "id": "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224", 
         "title": "タイトル",
         "sender_id": "user-fb5f58dbe91e",
         "recipient_id": [
-            "waiting" // userId, "waiting", "rejected"のいずれか
-        ],
-        "date_sent": "2025-06-03 00:00:00Z",
+            "waiting" 
+        ], // userId, "waiting", "rejected"のいずれか
+        "date_sent": "YYYY-MM-DDTHH:MM:SSZ",
         "content": "メールの本文はここ"
     },
 ```

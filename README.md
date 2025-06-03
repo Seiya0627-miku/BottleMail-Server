@@ -45,7 +45,7 @@ $ uvicorn server_api:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Expo Goのインストールごとに付与されるユニークなIDでユーザ識別を行う（IDの取得はクライエントが担う。サーバは受け取るだけ）。
-各ユーザには以下の情報が紐づけられる。これらの情報は`user.json`に保存される。
+各ユーザには以下の情報が紐づけられる。これらの情報は`users.json`に保存される。
 ```json
   "user-123456789abc": {
     "preferences": { "emotion": "明るい", "custom": "政治の話はやだ" },
@@ -54,5 +54,21 @@ Expo Goのインストールごとに付与されるユニークなIDでユー�
   },
 ```
 
-各ユーザが送信、受信してきた手紙はユニークな手紙IDで管理する。手紙本体は`.txt`形式で`letter_contents`で保存される。
+各ユーザが送信、受信してきた手紙はユニークな手紙IDで管理する。手紙本体は`letters.json`に保存される。
+```json
+    "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224": {
+        "id": "letter-9c7ddee1-de49-49eb-847d-761b4ddf6224",
+        "title": "タイトル",
+        "sender_id": "user-fb5f58dbe91e",
+        "recipient_id": [
+            "waiting" // userId, "waiting", "rejected"のいずれか
+        ],
+        "date_sent": "2025-06-03 00:00:00Z",
+        "content": "メールの本文はここ"
+    },
+```
 
+## サーバの動作
+クライエント側はアプリ起動時にサーバに自分のIDが登録されているかどうかの確認を行い、サーバはそれに対して返事を行う。
+
+手紙が届くたびに、まず手紙に一意なUUIDを付与して`letters.json`に登録し、受信者の指定を試みる。送信者がサーバのデータベース（`users.json`）に登録されていない場合に登録する。

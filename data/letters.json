@@ -8,35 +8,5 @@
         ],
         "date_sent": "2025-06-03 01:59:45Z",
         "content": "こんな感じに"
-    },
-    "letter-a3212248-3c08-4068-a881-6950f1a7be25": {
-        "id": "letter-a3212248-3c08-4068-a881-6950f1a7be25",
-        "title": "タイトル",
-        "sender_id": "user-fb5f58dbe91e",
-        "recipient_id": [
-            "waiting"
-        ],
-        "date_sent": "2025-06-03 02:00:30Z",
-        "content": "こんな感じに"
-    },
-    "letter-e67840c3-95c1-4a9b-b327-6c2e86349886": {
-        "id": "letter-e67840c3-95c1-4a9b-b327-6c2e86349886",
-        "title": "こ",
-        "sender_id": "user-fb5f58dbe91e",
-        "recipient_id": [
-            "waiting"
-        ],
-        "date_sent": "2025-06-03 02:14:54Z",
-        "content": "ここ"
-    },
-    "letter-f6a95904-2c27-4e3c-be8c-f26555286c4a": {
-        "id": "letter-f6a95904-2c27-4e3c-be8c-f26555286c4a",
-        "title": "こ",
-        "sender_id": "user-fb5f58dbe91e",
-        "recipient_id": [
-            "waiting"
-        ],
-        "date_sent": "2025-06-03 02:17:01Z",
-        "content": "ここ"
     }
 }

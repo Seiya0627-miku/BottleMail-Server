@@ -1,36 +1,52 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import List, Dict, Any, Tuple, Optional # 型ヒントの追加
+import random
 import logging
+import json
 import os
-import re
-import asyncio 
+import time 
+import uuid 
+import re # Geminiレスポンス解析用
+
+# Gemini APIライブラリのインポートと環境変数読み込み
 import google.generativeai as genai
 from dotenv import load_dotenv
-from typing import List, Dict, Tuple, Optional, Any
 
-load_dotenv()
+load_dotenv() # .envファイルから環境変数をロード
 
 app = FastAPI()
+# messages = [] # 王くんのコードではletters.jsonで管理のため、このグローバル変数は不要
 
-messages: List[Tuple[str, str]] = []
-receiver_profiles: List[Dict[str, str]] = []
-SENDER_DATA_FILE_PATH = "sender_data.log"
-sender_data_file_lock = asyncio.Lock()
+# --- File Paths and Directory Setup ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
+LETTERS_FILE = os.path.join(DATA_DIR, "letters.json")
+os.makedirs(DATA_DIR, exist_ok=True)
 
-logger = logging.getLogger("main_server")
+LETTER_RECEIVE_COOLDOWN_SECONDS = 60 
+
+# --- Logging Configuration ---
+# 王くんのロギング設定を流用・整理
+logger = logging.getLogger("bottlemail_server_gemini") # ロガー名を少し変更
 logger.setLevel(logging.INFO)
-main_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-if not logger.handlers:
-    file_handler = logging.FileHandler("server.log", encoding="utf-8")
-    file_handler.setFormatter(main_formatter)
-    logger.addHandler(file_handler)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(main_formatter)
-    logger.addHandler(stream_handler)
+if not logger.handlers: # ハンドラの重複登録を防ぐ
+    # ファイルハンドラ
+    file_log_handler = logging.FileHandler("server.log", encoding="utf-8") # server.logは王くんのコード通り
+    file_log_handler.setFormatter(log_formatter)
+    logger.addHandler(file_log_handler)
+    # ストリームハンドラ (コンソール出力)
+    stream_log_handler = logging.StreamHandler()
+    stream_log_handler.setFormatter(log_formatter)
+    logger.addHandler(stream_log_handler)
 
+# --- Gemini API Configuration ---
 GEMINI_API_KEY_CONFIGURED = False
 gemini_model = None
+MODERATION_REJECTED_ID = "MODERATION_REJECTED" # モデレーションにより拒否された場合の特別なID
 
 try:
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -38,252 +54,327 @@ try:
         logger.error("環境変数 'GEMINI_API_KEY' が設定されていません。Geminiの機能は利用できません。")
     else:
         genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+        gemini_model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20') # 指示されたモデル
         GEMINI_API_KEY_CONFIGURED = True
-        logger.info("Gemini APIキーが正常に設定され、モデルが初期化されました。")
+        logger.info("Gemini APIキーが正常に設定され、モデル ('gemini-2.5-flash-preview-05-20') が初期化されました。")
 except Exception as e:
     logger.error(f"Gemini APIの設定中にエラーが発生しました: {e}")
 
-def parse_sender_data_log() -> Dict[str, List[str]]:
-    data: Dict[str, List[str]] = {}
-    current_receiver_id: Optional[str] = None
+
+# --- JSON Helper functions (from Wang-kun) ---
+def load_json_data(filepath: str, default_data: Any = {}) -> Any:
+    if not os.path.exists(filepath):
+        save_json_data(filepath, default_data)
+        return default_data
     try:
-        with open(SENDER_DATA_FILE_PATH, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    current_receiver_id = None
-                    continue
-                
-                receiver_match = re.fullmatch(r'receiver_id:\s*"(.*?)"', line)
-                if receiver_match:
-                    current_receiver_id = receiver_match.group(1)
-                    if current_receiver_id not in data:
-                        data[current_receiver_id] = []
-                elif current_receiver_id: 
-                    data[current_receiver_id].append(line)
-    except FileNotFoundError:
-        logger.info(f"{SENDER_DATA_FILE_PATH} が見つかりません。新規作成されます。")
-    except Exception as e:
-        logger.error(f"{SENDER_DATA_FILE_PATH} の解析中にエラー: {e}")
-    return data
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError) as e: # エラー型を具体的に
+        logger.error(f"{filepath} の読み込みまたはデコード中にエラー: {e}. デフォルトデータを返します。")
+        save_json_data(filepath, default_data)
+        return default_data
 
-def format_sender_data_log_content(data: Dict[str, List[str]]) -> str:
-    output_lines: List[str] = []
-    for receiver_id_key, messages_list in data.items():
-        output_lines.append(f'receiver_id: "{receiver_id_key}"')
-        output_lines.extend(messages_list)
-        output_lines.append("") 
-    return "\n".join(output_lines).strip() + "\n" if output_lines else ""
-
-async def append_to_sender_data_log(
-    chosen_receiver_id_key: str,
-    sender_id: str, 
-    original_msg: str,
-    tag: str, 
-    reason: str
-):
-    async with sender_data_file_lock:
-        log_data_structure = parse_sender_data_log()
-        
-        msg_for_log = original_msg.replace("\r\n", "").replace("\n", "").replace("\r", "")
-        
-        new_entry_line = f'read:"False", user_id: "{sender_id}", msg: "{msg_for_log}", tag: "{tag}", reason: "{reason}"'
-
-        if chosen_receiver_id_key not in log_data_structure:
-            log_data_structure[chosen_receiver_id_key] = []
-        log_data_structure[chosen_receiver_id_key].append(new_entry_line)
-        
-        formatted_content = format_sender_data_log_content(log_data_structure)
-        try:
-            with open(SENDER_DATA_FILE_PATH, "w", encoding="utf-8") as f:
-                f.write(formatted_content)
-            logger.info(f"データを {SENDER_DATA_FILE_PATH} に書き込みました (宛先: {chosen_receiver_id_key})。")
-        except Exception as e:
-            logger.error(f"{SENDER_DATA_FILE_PATH} への書き込み中にエラー: {e}")
-
-def load_receiver_data():
-    global receiver_profiles
-    receiver_profiles = []
+def save_json_data(filepath: str, data: Any):
     try:
-        with open("receiver_data.log", "r", encoding="utf-8") as f:
-            for line_number, line in enumerate(f, 1):
-                line = line.strip()
-                if not line: continue
-                match = re.fullmatch(r'user_id:"(.*?)"\s*,\s*grasp:"(.*?)"\s*,\s*description:"(.*?)"', line)
-                if match:
-                    uid, grasp, desc = match.groups()
-                    receiver_profiles.append({"user_id": uid, "grasp": grasp, "description": desc})
-                else:
-                    logger.warning(f"receiver_data.log の {line_number}行目を解析できませんでした: {line}")
-        logger.info(f"{len(receiver_profiles)}件の受信者プロファイルをreceiver_data.logから読み込みました。")
-    except FileNotFoundError:
-        logger.error("receiver_data.log が見つかりません。受信者プロファイルは空です。")
-    except Exception as e:
-        logger.error(f"receiver_data.log の読み込み中にエラーが発生しました: {e}")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except IOError as e:
+        logger.error(f"{filepath} へのJSONデータ書き込みエラー: {e}")
 
-@app.on_event("startup")
-async def startup_event():
-    load_receiver_data()
+# --- Load data at startup (from Wang-kun) ---
+users_data: Dict[str, Dict[str, Any]] = load_json_data(USERS_FILE, {})
+letters_data: Dict[str, Dict[str, Any]] = load_json_data(LETTERS_FILE, {})
 
-MODERATION_BLOCKED_TAG = "MODERATION_BLOCKED"
-UNKNOWN_EMOTION_TAG = "不明"
-VALID_EMOTION_TAGS = ["悲しみ", "喜び", "楽しみ", "憂鬱"]
+# --- User Initialization (from Wang-kun) ---
+def initialize_user_fields(user_id: str):
+    if user_id not in users_data: # 既存データを上書きしないように確認
+        users_data[user_id] = {"id": user_id}
+        users_data[user_id].setdefault("preferences", {"emotion": "未設定", "custom": "未設定"})
+        users_data[user_id].setdefault("unopenedLetterIds", [])
+        users_data[user_id].setdefault("receivedLetterIds", [])
+        users_data[user_id].setdefault("sentLetterIds", [])
+        users_data[user_id].setdefault("registered_at", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        users_data[user_id].setdefault("last_letter_retrieved_at", 0)
+        logger.info(f"新規ユーザー {user_id} の情報を初期化しました。")
 
-async def get_message_emotion_tag(text: str) -> str:
+
+# --- New Gemini Helper Function for Matching and Moderation ---
+async def get_intelligent_match_with_moderation(
+    message_text: str,
+    all_users_data: Dict[str, Dict[str, Any]],
+    sender_id_to_exclude: str
+) -> Tuple[Optional[str], str]: # (recipient_id or MODERATION_REJECTED_ID or None, reason)
+    
     if not GEMINI_API_KEY_CONFIGURED or not gemini_model:
-        logger.warning("Gemini API未設定のため、感情タグ付けをスキップします。")
-        return UNKNOWN_EMOTION_TAG 
+        logger.warning("Gemini API未設定。マッチング処理をスキップします。")
+        # フォールバックとして「該当者なし」を返すか、エラーを明確にするか。
+        # ここでは「該当者なし」として扱うが、実際はエラー処理を検討。
+        return None, "システムエラー (Gemini API未設定)"
+
+    candidate_profiles_for_prompt = []
+    for uid, u_data in all_users_data.items():
+        if uid == sender_id_to_exclude:
+            continue
+        prefs = u_data.get("preferences", {"emotion": "未設定", "custom": "未設定"})
+        emotion_pref = prefs.get("emotion", "未設定")
+        custom_pref = prefs.get("custom", "未設定")
+        
+        profile_desc_parts = [f'user_id: "{uid}"']
+        profile_desc_parts.append(f'希望感情(emotion): "{emotion_pref}"')
+        profile_desc_parts.append(f'補足情報(custom): "{custom_pref}"')
+
+        if emotion_pref == "未設定" and (custom_pref == "未設定" or not custom_pref.strip()):
+            profile_desc_parts.append("(このユーザーは特に希望がなく、どんなメッセージでも受け入れます)")
+        elif emotion_pref == "未設定":
+            profile_desc_parts.append("(このユーザーの希望感情は未設定です。補足情報を参照してください)")
+        
+        candidate_profiles_for_prompt.append(", ".join(profile_desc_parts))
+    
+    if not candidate_profiles_for_prompt:
+        return None, "受信者候補がいません"
+
+    formatted_profiles_str = "\n".join([f"- {p}" for p in candidate_profiles_for_prompt])
 
     prompt = f"""
-    以下の「メッセージ内容」を分析し、最も強く表現されている主要な感情を「悲しみ」「喜び」「楽しみ」「憂鬱」のいずれか一つだけ選んでください。
-    返答は、選んだ感情の単語（例: 悲しみ）のみとし、他の言葉や記号は一切含めないでください。
-    もし、これらの4つの感情のいずれにも明確に分類できない場合は、「不明」とだけ返答してください。
+    あなたは受信したメッセージを分析し、多数の受信希望者の中から最も適切な一人に割り当てるAIです。
 
     メッセージ内容:
-    "{text}"
+    "{message_text}"
+
+    受信希望者のリスト (user_id、希望感情(emotion)、補足情報(custom)):
+    {formatted_profiles_str}
+
+    選定ロジック:
+    1. まず、メッセージ内容を深く分析し、その主題、雰囲気、暗示されている感情などを把握してください。
+    2. 次に、各受信希望者の「希望感情(emotion)」とメッセージ内容の分析結果を照合します。これが最も重要なマッチング基準です。
+    3. 「希望感情(emotion)」が「未設定」のユーザーは、どんなメッセージでも受け入れる可能性がありますが、明確な希望感情を持つユーザーとのマッチングを優先してください。ただし、メッセージ内容と「補足情報(custom)」が非常に強く合致する場合は、「未設定」のユーザーも有力な候補となります。
+    4. 「補足情報(custom)」は、特に「希望感情(emotion)」のマッチングが複数あった場合や、完全一致がない場合の重要な判断材料となります。メッセージ内容と「補足情報(custom)」の関連性を評価してください。
+    5. 上記を総合的に判断し、このメッセージを受け取るのに最も相応しいユーザーを一人だけ選んでください。
+
+    回答は以下の形式で、user_idと選定理由のみを返してください。
+    user_id: [選ばれたユーザーのID または "該当者なし"]
+    理由: [選定理由]
     """
     try:
-        logger.info(f"Gemini APIへ感情タグ付けリクエスト送信 (メッセージ冒頭: '{text[:30]}...')")
-        response = await gemini_model.generate_content_async(prompt)
-        
-        if response.prompt_feedback.block_reason:
-            logger.warning(f"Gemini感情タグ付けがブロックされました (不適切コンテンツの可能性): {response.prompt_feedback.block_reason} (メッセージ冒頭: '{text[:30]}...')")
-            return MODERATION_BLOCKED_TAG
-        
-        emotion_tag = response.text.strip()
-        if emotion_tag in VALID_EMOTION_TAGS or emotion_tag == UNKNOWN_EMOTION_TAG:
-            logger.info(f"Gemini APIから感情タグ受信: {emotion_tag} (メッセージ冒頭: '{text[:30]}...')")
-            return emotion_tag
-        else:
-            logger.warning(f"Geminiから予期しない感情タグを受信: '{emotion_tag}'。'{UNKNOWN_EMOTION_TAG}'として扱います。(メッセージ冒頭: '{text[:30]}...')")
-            return UNKNOWN_EMOTION_TAG
-    except Exception as e:
-        logger.error(f"Gemini API感情タグ付け呼び出し中にエラー: {e} (メッセージ冒頭: '{text[:30]}...')")
-        return UNKNOWN_EMOTION_TAG
-
-async def determine_best_recipient(message_text: str, message_emotion_tag: str, profiles: List[Dict[str, str]]) -> Tuple[str, str]:
-    if not GEMINI_API_KEY_CONFIGURED or not gemini_model:
-        logger.warning("Gemini API未設定のため、宛先選定をスキップします。")
-        return "該当者なし", "システムエラー (Gemini API未設定)"
-    if not profiles:
-        logger.warning("受信者プロファイルが空のため、宛先選定をスキップします。")
-        return "該当者なし", "受信者データなし"
-
-    formatted_profiles = "\n".join([
-        f"- user_id: \"{p['user_id']}\", grasp: \"{p['grasp']}\", description: \"{p['description']}\"" for p in profiles
-    ])
-
-    # ★ プロンプトの「選定基準」部分を修正
-    prompt = f"""
-    あなたは、受け取ったメッセージを、最も適切な受信者に届けるための判断を行うAIです。
-
-    以下の情報に基づいて、メッセージを送るのに最も相応しいユーザーを一人だけ選び、そのユーザーの「user_id」と「選定理由」を特定してください。
-
-    提供情報:
-    1. メッセージ内容: "{message_text}"
-    2. メッセージから抽出された感情タグ: "{message_emotion_tag}" (このタグが「不明」の場合、メッセージ内容と受信者のdescriptionをより重視して判断してください。)
-    3. 受信希望者のリスト（各ユーザーの希望感情 grasp と補足情報 description）:
-    {formatted_profiles}
-
-    選定基準:
-    1.  **最優先事項:** メッセージの感情タグと受信者の「grasp」（希望感情）が完全に一致するユーザーを最優先で検討してください。
-    2.  **次に考慮する事項 (上記1で一致するユーザーが複数いる場合、または完全一致するユーザーがいない場合):**
-        a.  メッセージの感情タグと受信者の「grasp」が類似している、または関連性の高い感情であるユーザーを検討してください。(例: メッセージタグが「喜び」で、受信者のgraspが「楽しみ」など)
-        b.  受信者の「description」（補足情報）を重要な手がかりとしてください。特に、メッセージの感情や内容と受信者のdescriptionが強く関連している場合（例: メッセージが「悲しみ」で、descriptionに「同じ悲しい状況の人と話したい」とある場合や、メッセージが「喜び」でdescriptionに「喜びを感じる話が聞きたい」とある場合）は、評価を高めてください。descriptionが「なし」または空欄の場合は、他の要素で判断してください。
-        c.  メッセージ内容そのものも、受信者のdescriptionやgraspと照らし合わせて総合的な適合性を判断してください。
-    3.  **総合判断:** 上記の優先順位と考慮事項を踏まえ、メッセージの送り手と受け手の間で最も良いマッチングとなりそうな相手を一人だけ選んでください。
-    4.  **該当者なしの場合:** 適切な受信者が見つからない、または判断できない場合は、user_idとして「該当者なし」と回答してください。
-
-    回答形式 (他の言葉は含めないでください):
-    user_id: [選ばれたuser_id または "該当者なし"]
-    理由: [選定理由 または "適切な受信者が見つかりませんでした"]
-    """
-    try:
-        logger.info(f"Gemini APIへ宛先選定リクエスト送信 (メッセージ感情: {message_emotion_tag}, メッセージ冒頭: '{message_text[:30]}...')")
+        logger.info(f"Gemini APIへマッチングリクエスト送信 (メッセージ冒頭: '{message_text[:30]}...')")
+        # generate_content_async inherently uses safety filters.
         response = await gemini_model.generate_content_async(prompt)
 
         if response.prompt_feedback.block_reason:
-            logger.warning(f"Gemini宛先選定がブロックされました: {response.prompt_feedback.block_reason} (メッセージ冒頭: '{message_text[:30]}...')")
-            return "該当者なし", f"システムエラー (コンテンツ生成ブロック: {response.prompt_feedback.block_reason})"
+            logger.warning(f"Gemini API呼び出しが安全フィルターによりブロックされました: {response.prompt_feedback.block_reason} (メッセージ: '{message_text[:30]}...')")
+            # ② フィルタリング機能: 不適切な内容の場合の処理
+            return MODERATION_REJECTED_ID, f"コンテンツが不適切と判断 ({response.prompt_feedback.block_reason})"
 
         response_text = response.text.strip()
-        logger.info(f"Gemini APIから宛先選定レスポンス受信: {response_text}")
-        
+        logger.info(f"Gemini APIからマッチングレスポンス受信: {response_text}")
+
         chosen_user_id_match = re.search(r"user_id:\s*(.+)", response_text, re.IGNORECASE)
         reason_match = re.search(r"理由:\s*(.+)", response_text, re.IGNORECASE)
 
-        chosen_user_id = chosen_user_id_match.group(1).strip() if chosen_user_id_match else "該当者なし"
-        reason = reason_match.group(1).strip() if reason_match else "選定理由の解析に失敗しました。"
+        chosen_user_id_str = chosen_user_id_match.group(1).strip() if chosen_user_id_match else "該当者なし"
+        reason_str = reason_match.group(1).strip() if reason_match else "選定理由の解析に失敗"
         
         if not chosen_user_id_match:
              logger.warning(f"Geminiからの応答でuser_idを解析できませんでした: {response_text}")
-             chosen_user_id = "該当者なし"
+        
+        if chosen_user_id_str.lower() == "該当者なし":
+            return None, reason_str # None signifies no specific user chosen
+        
+        # Geminiが返したIDが実在するか確認
+        if chosen_user_id_str not in all_users_data:
+            logger.warning(f"Geminiが返したuser_id '{chosen_user_id_str}' はusers_dataに存在しません。'該当者なし'として扱います。")
+            return None, f"Geminiが選択したユーザー({chosen_user_id_str})は無効。理由: {reason_str}"
 
-        return chosen_user_id, reason
+        return chosen_user_id_str, reason_str
+
     except Exception as e:
-        logger.error(f"Gemini API宛先選定呼び出し中にエラー: {e} (メッセージ冒頭: '{message_text[:30]}...')")
-        return "該当者なし", f"システムエラー (APIエラー: {type(e).__name__})"
+        logger.error(f"Gemini APIマッチング呼び出し中に予期せぬエラー: {e}")
+        return None, f"システムエラー (Gemini API呼び出し失敗: {type(e).__name__})"
+
+
+# --- FastAPI Endpoints ---
+@app.post("/check_user/{client_id}")
+async def check_or_register_user(client_id: str):
+    if client_id in users_data:
+        logger.info(f"User checked: {client_id} (Existing)")
+        return {"is_new_user": False, "user_id": client_id, "details": users_data[client_id]}
+    else:
+        initialize_user_fields(client_id)
+        save_json_data(USERS_FILE, users_data)
+        logger.info(f"✨ New user registered via check: {client_id}")
+        return {"is_new_user": True, "user_id": client_id, "details": users_data[client_id]}
 
 @app.post("/send")
 async def send_message(request: Request):
-    try:
-        data = await request.json()
-    except Exception:
-        logger.warning("不正なJSON形式のリクエストを受信しました。")
-        return JSONResponse(status_code=400, content={"status": "error", "detail": "Invalid JSON format."})
-
-    msg = data.get("message")
-    sender_id = data.get("userId", "unknown_sender") 
-    client_ip = request.client.host if request.client else "N/A"
-
-    if not msg or sender_id == "unknown_sender":
-        logger.warning(f"不正なリクエスト: 'message' または 'userId' がありません。IP={client_ip}, 受信データ={data}")
-        return JSONResponse(status_code=400, content={"status": "error", "detail": "message and userId are required"})
-
-    logger.info(f"📩 受信: from={sender_id}, ip={client_ip}, message='{msg}'")
+    data = await request.json()
+    message_text = data.get("message")
+    title = data.get("title", "No Title")
+    sender_id = data.get("userId", "unknown_sender") # server_api.py側のキー名に合わせる
     
-    emotion_tag = await get_message_emotion_tag(msg)
+    if not message_text or sender_id == "unknown_sender":
+        raise HTTPException(status_code=400, detail="Message content and valid userId are required")
 
-    if emotion_tag == MODERATION_BLOCKED_TAG:
-        logger.info(f"メッセージ (from={sender_id}, msg='{msg[:30]}...') は不適切と判断され、処理を中断しました。")
-        return {"status": "received", "detail": "Message processed but flagged."} 
+    if sender_id not in users_data:
+        logger.warning(f"Sender {sender_id} not found. Initializing user.")
+        initialize_user_fields(sender_id)
+        # save_json_data(USERS_FILE, users_data) # 後でまとめて保存
 
-    logger.info(f"🏷️ 付与された感情タグ: {emotion_tag} (from={sender_id}, message='{msg[:30]}...')")
-    
-    chosen_receiver_id, reason_for_selection = await determine_best_recipient(msg, emotion_tag, receiver_profiles)
-    
-    logger.info(f"🎯 選定された宛先ユーザー: {chosen_receiver_id}, 理由: {reason_for_selection} (message from {sender_id}='{msg[:30]}...')")
+    letter_id = f"letter-{uuid.uuid4()}"
+    current_time_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-    await append_to_sender_data_log(
-        chosen_receiver_id,
-        sender_id,
-        msg,
-        emotion_tag,
-        reason_for_selection
+    # Geminiによる分析と受信者選定
+    # recipient_id_selectedは、ユーザーID文字列、MODERATION_REJECTED_ID、またはNoneを返す
+    recipient_id_selected, reason_for_choice = await get_intelligent_match_with_moderation(
+        message_text, users_data, sender_id
     )
 
-    messages.append((msg, sender_id))
-
-    return {
-        "status": "received",
-        "emotion_tag_assigned": emotion_tag,
-        "matched_receiver": chosen_receiver_id,
-        "reason": reason_for_selection
+    new_letter = {
+        "id": letter_id,
+        "date_sent": current_time_iso,
+        "date_received": 0,
+        "sender_id": sender_id,
+        "recipient_id": ["waiting"], # 初期値
+        "title": title,
+        "content": message_text,
+        # "emotion_tag_inferred": "TBD", # 推測タグも保存する場合 (get_intelligent_match_with_moderation の返り値に追加が必要)
+        "routing_info": {"reason": reason_for_choice, "gemini_choice": recipient_id_selected or "該当者なし"} # ルーティング情報を保存
     }
 
-@app.get("/receive/{client_id}")
-def receive_message(client_id: str):
-    message_to_send = None
-    sender_of_message = None
-    for i, (msg_content, sender) in enumerate(messages):
-        if sender != client_id: 
-            message_to_send = msg_content
-            sender_of_message = sender
-            messages.pop(i)
-            break 
-    if message_to_send:
-        logger.info(f"📤 配信: to={client_id}, message='{message_to_send}' (from sender: {sender_of_message})")
-        return {"message": message_to_send, "sender_id": sender_of_message}
-    logger.info(f"📤 配信試行: to={client_id}, 利用可能なメッセージなし")
-    return {"message": None, "sender_id": None}
+    final_recipient_assigned = False
+
+    if recipient_id_selected == MODERATION_REJECTED_ID:
+        # ② フィルタリング機能: recipient_idをrejectedに
+        new_letter["recipient_id"] = ["rejected"]
+        logger.info(f"Letter {letter_id} from {sender_id} REJECTED by moderation. Reason: {reason_for_choice}")
+    elif recipient_id_selected and recipient_id_selected in users_data: # Noneでもなく、実在するID
+        # ① マッチング機能: 選ばれたユーザーに設定
+        new_letter["recipient_id"] = [recipient_id_selected]
+        users_data[recipient_id_selected].setdefault("unopenedLetterIds", []).append(letter_id)
+        logger.info(f"Letter {letter_id} from {sender_id} routed to {recipient_id_selected}. Reason: {reason_for_choice}")
+        final_recipient_assigned = True
+    else: # 該当者なし (recipient_id_selected is None) またはエラー
+        new_letter["recipient_id"] = ["no_suitable_recipient"] # または "waiting" のまま
+        logger.info(f"Letter {letter_id} from {sender_id}: No suitable recipient found or error. Reason: {reason_for_choice}. Status set to 'no_suitable_recipient'.")
+    
+    letters_data[letter_id] = new_letter
+    users_data[sender_id].setdefault("sentLetterIds", []).append(letter_id)
+
+    save_json_data(LETTERS_FILE, letters_data)
+    save_json_data(USERS_FILE, users_data)
+
+    return {
+        "status": "received_and_processed", 
+        "letter_id": letter_id,
+        "recipient_status": new_letter["recipient_id"][0] # "rejected", user_id, or "no_suitable_recipient"
+    }
+
+
+# --- 以下のエンドポイントは王くんのコードからほぼそのまま (細かいログやレスポンス調整は可能性あり) ---
+@app.get("/receive_unopened/{client_id}")
+def get_unopened_letters(client_id: str):
+    if client_id not in users_data:
+        raise HTTPException(status_code=404, detail="User not found")
+    user = users_data[client_id]
+    current_timestamp = time.time()
+    last_retrieved_timestamp = user.get("last_letter_retrieved_at", 0)
+
+    if current_timestamp < last_retrieved_timestamp + LETTER_RECEIVE_COOLDOWN_SECONDS:
+        remaining_cooldown = int((last_retrieved_timestamp + LETTER_RECEIVE_COOLDOWN_SECONDS) - current_timestamp)
+        logger.info(f"User {client_id} is in cooldown. Remaining: {remaining_cooldown}s")
+        return {"status": "cooldown", "letter": None, "cooldown_remaining_seconds": remaining_cooldown}
+
+    unopened_ids = user.get("unopenedLetterIds", [])
+    if not unopened_ids:
+        logger.info(f"No unopened letters for {client_id}.")
+        return {"status": "no_new_letters", "letter": None}
+
+    letter_id_to_deliver = unopened_ids[0] 
+    if letter_id_to_deliver in letters_data:
+        letter_details = letters_data[letter_id_to_deliver]
+        logger.info(f"📬 Offering letter {letter_id_to_deliver} to {client_id}")
+        return {"status": "new_letter_available", **letter_details}
+    else:
+        logger.warning(f"Stale Letter ID {letter_id_to_deliver} in {client_id}'s unopened list. Removing.")
+        try: user["unopenedLetterIds"].pop(0)
+        except IndexError: logger.error(f"IndexError for {client_id} unopenedLetterIds (stale check).")
+        save_json_data(USERS_FILE, users_data)
+        return {"status": "stale_letter_removed", "letter": None}
+
+@app.post("/mark_letter_opened/{client_id}/{letter_id}")
+async def mark_letter_opened(client_id: str, letter_id: str):
+    if client_id not in users_data: raise HTTPException(status_code=404, detail="User not found")
+    user = users_data[client_id]
+    response_status = "error_letter_not_in_unopened"
+    client_formatted_letter = None
+
+    if letter_id in user.get("unopenedLetterIds", []):
+        user["unopenedLetterIds"].remove(letter_id)
+        user.setdefault("receivedLetterIds", []).append(letter_id)
+        user["last_letter_retrieved_at"] = time.time()
+        if letter_id in letters_data:
+            letters_data[letter_id]["date_received"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            save_json_data(LETTERS_FILE, letters_data) # letters.json 更新はここ
+            # クライアントに返す手紙詳細を整形
+            lt = letters_data[letter_id]
+            client_formatted_letter = {
+                "id": lt.get("id"), "title": lt.get("title"), "content": lt.get("content"),
+                "date_received": lt.get("date_received"), "sender_id": lt.get("sender_id"),
+                # "emotion_tag_inferred": lt.get("routing_info", {}).get("inferred_tag") # 必要なら
+            }
+        save_json_data(USERS_FILE, users_data) # users.json 更新
+        logging.info(f"Letter {letter_id} marked as opened by {client_id}. Cooldown started.")
+        response_status = "marked_opened_and_in_received" if client_formatted_letter else "marked_opened_but_letter_details_missing"
+
+    elif letter_id in user.get("receivedLetterIds", []):
+        logging.info(f"Letter {letter_id} already in received for {client_id}.")
+        response_status = "already_in_received"
+        if letter_id in letters_data: # 既に開封済みでも詳細を返す
+            lt = letters_data[letter_id]
+            client_formatted_letter = {
+                "id": lt.get("id"), "title": lt.get("title"), "content": lt.get("content"),
+                "date_received": lt.get("date_received"), "sender_id": lt.get("sender_id"),
+            }
+        else:
+            response_status = "already_in_received_but_letter_details_missing"
+    else:
+        logging.warning(f"Letter {letter_id} not found in unopened for {client_id} to mark.")
+        raise HTTPException(status_code=404, detail="Letter not found in user's unopened list")
+    
+    return {"status": response_status, 
+            "letter": client_formatted_letter, 
+            "letter_id": letter_id if not client_formatted_letter else None}
+    
+@app.get("/letterbox/{client_id}")
+def get_letterbox_contents(client_id: str):
+    if client_id not in users_data: raise HTTPException(status_code=404, detail="User not found")
+    user = users_data[client_id]
+    letterbox_ids = user.get("receivedLetterIds", [])
+    letters_in_box_details = []
+    for letter_id in letterbox_ids:
+        if letter_id in letters_data:
+            ld = letters_data[letter_id]
+            letters_in_box_details.append({
+                "id": ld.get("id"), "title": ld.get("title"), "content": ld.get("content"), 
+                "date_received": ld.get("date_received", ld.get("date_sent","").split("T")[0]), 
+                "sender_id": ld.get("sender_id"),
+                # "emotion_tag_inferred": ld.get("routing_info", {}).get("inferred_tag") # 必要なら
+            })
+        else:
+            logging.warning(f"Letter ID {letter_id} in {client_id}'s received, but not in letters_data.")
+    letters_in_box_details.sort(key=lambda x: x.get("date_received", ""), reverse=True)
+    logging.info(f"📬 Fetched {len(letters_in_box_details)} letters from letterbox for {client_id}")
+    return letters_in_box_details
+
+class PreferencesPayload(BaseModel):
+    emotion: str
+    custom: str
+
+@app.post("/update_preferences/{client_id}")
+async def update_preferences_endpoint(client_id: str, payload: PreferencesPayload):
+    if client_id not in users_data: initialize_user_fields(client_id)
+    if client_id not in users_data: raise HTTPException(status_code=404, detail="User not found after init attempt")
+    user = users_data[client_id]
+    user["preferences"] = {"emotion": payload.emotion, "custom": payload.custom}
+    save_json_data(USERS_FILE, users_data)
+    logging.info(f"Preferences updated for user {client_id}: {user['preferences']}")
+    return {"status": "preferences_updated", "user_id": client_id, "updated_preferences": user["preferences"]}

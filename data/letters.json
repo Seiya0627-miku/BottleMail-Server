@@ -1,13 +1,92 @@
 {
-    "letter-e227beeb-ae17-4e65-b3d9-5d843830d62f": {
-        "id": "letter-e227beeb-ae17-4e65-b3d9-5d843830d62f",
-        "date_sent": "2025-06-03T06:05:26Z",
-        "date_received": "2025-06-03T06:05:41Z",
-        "sender_id": "user-1736df9f5387",
+    "letter-16b19357-2bbb-4948-b417-199ca5359cbb": {
+        "id": "letter-16b19357-2bbb-4948-b417-199ca5359cbb",
+        "date_sent": "2025-06-04T19:07:38Z",
+        "date_received": "2025-06-04T19:08:01Z",
+        "sender_id": "user-ab78abc35da5",
         "recipient_id": [
-            "user-fb5f58dbe91e"
+            "user-fb9bcce278a4"
         ],
-        "title": "iPadのアプリから送った",
-        "content": "スマホ側で受信して読めるようになったよー"
+        "title": "テストメイル",
+        "content": "テストのメールです。こんにちは。届いているかな？僕は今、開発に携われていてちょっと楽しいです。",
+        "routing_info": {
+            "reason": "メッセージ内容に「ちょっと楽しいです」と明確な感情が記述されており、受信希望者の希望感情「楽しい」と完全に一致するため。さらに、補足情報の「明るい気持ち」も、メッセージが伝えるポジティブな感情と強く合致しています。",
+            "gemini_choice": "user-fb9bcce278a4"
+        }
+    },
+    "letter-0ca4a449-71ca-4ef9-8802-a43e4e0ef14c": {
+        "id": "letter-0ca4a449-71ca-4ef9-8802-a43e4e0ef14c",
+        "date_sent": "2025-06-04T19:09:56Z",
+        "date_received": "2025-06-04T19:10:31Z",
+        "sender_id": "user-fb9bcce278a4",
+        "recipient_id": [
+            "user-ab78abc35da5"
+        ],
+        "title": "今日の話",
+        "content": "今日はちょっとブルーな気分。傘を持ってくるのを忘れちゃったんだ。残念だったよ。",
+        "routing_info": {
+            "reason": "メッセージ内容の「ブルーな気分」は、受信希望者の「補足情報(custom)」にある「悲しい気持ち」と非常に近い感情を示しています。また、「残念だったよ」という表現も、軽い悲しみや落胆を含んでおり、「希望感情(emotion)」の「つらい」や「悲しい気持ち」と関連性があるため、このユーザーが最も適切であると判断しました。",
+            "gemini_choice": "user-ab78abc35da5"
+        }
+    },
+    "letter-f4e46b93-2c1b-40e2-9a9d-d90daf4aa282": {
+        "id": "letter-f4e46b93-2c1b-40e2-9a9d-d90daf4aa282",
+        "date_sent": "2025-06-04T19:21:34Z",
+        "date_received": 0,
+        "sender_id": "user-ab78abc35da5",
+        "recipient_id": [
+            "no_suitable_recipient"
+        ],
+        "title": "君のユーモアイロニカルな一言で",
+        "content": "世界を変えてくれないか",
+        "routing_info": {
+            "reason": "メッセージ内容「世界を変えてくれないか」は、壮大で挑戦的な課題提起や、真剣な依頼のニュアンスを含んでいます。これに対し、受信希望者の「希望感情(emotion)」は「楽しい」、補足情報(custom)は「明るい気持ち」です。メッセージが持つ変革への期待や課題の重みと、「楽しい」「明るい気持ち」といったポジティブで軽やかな感情の間には、感情的なミスマッチがあると判断しました。このメッセージを受け取るに「最も適切」な希望感情とは言えないため、今回は該当者なしとします。",
+            "gemini_choice": "該当者なし"
+        }
+    },
+    "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964": {
+        "id": "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964",
+        "date_sent": "2025-06-04T19:24:39Z",
+        "date_received": "2025-06-04T19:41:12Z",
+        "sender_id": "user-ab78abc35da5",
+        "recipient_id": [
+            "user-fb9bcce278a4"
+        ],
+        "title": "君のユーモアイロニカルな一言で",
+        "content": "世界を変えてくれないかい？楽しい世界に！",
+        "routing_info": {
+            "reason": "メッセージ内容の「楽しい世界に！」という部分が、受信希望者の「希望感情: 楽しい」と完全に一致しています。また、「世界を変えてくれないかい？楽しい世界に！」というメッセージのポジティブで希望に満ちた雰囲気は、受信希望者の「補足情報: 明るい気持ち」とも強く合致しており、このメッセージを受け取るのに最も適切なユーザーであると判断しました。",
+            "gemini_choice": "user-fb9bcce278a4"
+        }
+    },
+    "letter-0813929c-8bb1-41df-a13e-aa98dbceb152": {
+        "id": "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
+        "date_sent": "2025-06-04T19:29:15Z",
+        "date_received": 0,
+        "sender_id": "user-ab78abc35da5",
+        "recipient_id": [
+            "user-fb9bcce278a4"
+        ],
+        "title": "君のユーモアイロニカルな一言で",
+        "content": "世界を変えてくれないかい？楽しい世界に！",
+        "routing_info": {
+            "reason": "メッセージ内容「世界を変えてくれないかい？楽しい世界に！」は、「楽しい」という感情を明確に表現しており、ポジティブな変化への期待と明るい雰囲気を伴っています。受信希望者「user-fb9bcce278a4」の希望感情が「楽しい」であり、補足情報も「明るい気持ち」であるため、メッセージの意図と感情が完全に一致しています。このユーザーがメッセージを受け取るのに最も相応しいと判断しました。",
+            "gemini_choice": "user-fb9bcce278a4"
+        }
+    },
+    "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc": {
+        "id": "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc",
+        "date_sent": "2025-06-04T19:40:02Z",
+        "date_received": 0,
+        "sender_id": "user-ab78abc35da5",
+        "recipient_id": [
+            "user-fb9bcce278a4"
+        ],
+        "title": "こんにちは",
+        "content": "ウッキウキで送るのはテストのメールです。",
+        "routing_info": {
+            "reason": "メッセージ内容の「ウッキウキ」という表現は、非常に明るく楽しげな感情を強く示しています。受信希望者のuser-fb9bcce278a4は「希望感情: 楽しい」であり、さらに「補足情報: 明るい気持ち」を持っています。メッセージの感情と、このユーザーの希望感情および補足情報が完全に合致するため、最も適切な受信者であると判断しました。",
+            "gemini_choice": "user-fb9bcce278a4"
+        }
     }
 }

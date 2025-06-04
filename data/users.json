@@ -14,7 +14,8 @@
             "letter-f4e46b93-2c1b-40e2-9a9d-d90daf4aa282",
             "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964",
             "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
-            "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc"
+            "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc",
+            "letter-57751eab-f4bf-44c8-ab03-ce48d99876b6"
         ],
         "registered_at": "2025-06-04T19:04:17Z",
         "last_letter_retrieved_at": 1749064231.065482
@@ -25,18 +26,18 @@
             "emotion": "楽しい",
             "custom": "明るい気持ち"
         },
-        "unopenedLetterIds": [
-            "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
-            "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc"
-        ],
+        "unopenedLetterIds": [],
         "receivedLetterIds": [
             "letter-16b19357-2bbb-4948-b417-199ca5359cbb",
-            "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964"
+            "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964",
+            "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
+            "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc",
+            "letter-57751eab-f4bf-44c8-ab03-ce48d99876b6"
         ],
         "sentLetterIds": [
             "letter-0ca4a449-71ca-4ef9-8802-a43e4e0ef14c"
         ],
         "registered_at": "2025-06-04T19:05:47Z",
-        "last_letter_retrieved_at": 1749066072.856008
+        "last_letter_retrieved_at": 1749068570.486631
     }
 }

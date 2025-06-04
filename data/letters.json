@@ -62,7 +62,7 @@
     "letter-0813929c-8bb1-41df-a13e-aa98dbceb152": {
         "id": "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
         "date_sent": "2025-06-04T19:29:15Z",
-        "date_received": 0,
+        "date_received": "2025-06-04T20:20:12Z",
         "sender_id": "user-ab78abc35da5",
         "recipient_id": [
             "user-fb9bcce278a4"
@@ -77,7 +77,7 @@
     "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc": {
         "id": "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc",
         "date_sent": "2025-06-04T19:40:02Z",
-        "date_received": 0,
+        "date_received": "2025-06-04T20:21:30Z",
         "sender_id": "user-ab78abc35da5",
         "recipient_id": [
             "user-fb9bcce278a4"
@@ -86,6 +86,21 @@
         "content": "ウッキウキで送るのはテストのメールです。",
         "routing_info": {
             "reason": "メッセージ内容の「ウッキウキ」という表現は、非常に明るく楽しげな感情を強く示しています。受信希望者のuser-fb9bcce278a4は「希望感情: 楽しい」であり、さらに「補足情報: 明るい気持ち」を持っています。メッセージの感情と、このユーザーの希望感情および補足情報が完全に合致するため、最も適切な受信者であると判断しました。",
+            "gemini_choice": "user-fb9bcce278a4"
+        }
+    },
+    "letter-57751eab-f4bf-44c8-ab03-ce48d99876b6": {
+        "id": "letter-57751eab-f4bf-44c8-ab03-ce48d99876b6",
+        "date_sent": "2025-06-04T20:18:49Z",
+        "date_received": "2025-06-04T20:22:50Z",
+        "sender_id": "user-ab78abc35da5",
+        "recipient_id": [
+            "user-fb9bcce278a4"
+        ],
+        "title": "こんにちは",
+        "content": "真島茂樹です。ここはいいところです。楽しいよ！",
+        "routing_info": {
+            "reason": "メッセージが「ここはいいところです。楽しいよ！」と明確にポジティブな感情や状況を伝えており、受信希望者が「明るい気持ち」の手紙を求めているため、内容と希望が強く合致すると判断しました。",
             "gemini_choice": "user-fb9bcce278a4"
         }
     }

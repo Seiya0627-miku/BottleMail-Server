@@ -1,4 +1,0 @@
-*.log
-**/__pycache__/**
-bottleMail-env
-data

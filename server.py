@@ -118,7 +118,8 @@ async def send_message(request: Request):
     possible_recipients = [uid for uid in users_data.keys() if uid != sender_id]
     recipient_id_selected = None
     if possible_recipients:
-        recipient_id_selected = random.choice(possible_recipients)
+        recipient_id_selected = random.choice(possible_recipients)  # [*] ここを書き換える
+        # 手紙の内容をフィルタリングする。ダメだったらrejectedにする
         new_letter["recipient_id"] = [recipient_id_selected] # 受信者を更新
         
         # 受信者のunopenedLetterIdsに追加

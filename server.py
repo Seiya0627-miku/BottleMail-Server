@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel
 from typing import List, Dict, Any
 import random
 import logging
@@ -145,10 +146,9 @@ def get_unopened_letters(client_id: str):
     if client_id not in users_data:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user = users_data[client_id]
     if client_id not in users_data:
-        logging.info(f"User {client_id} not found, initializing fields.")
         initialize_user_fields(client_id)
+    user = users_data[client_id]
 
     current_timestamp = time.time()
     last_retrieved_timestamp = user.get("last_letter_retrieved_at", 0)
@@ -186,9 +186,9 @@ async def mark_letter_opened(client_id: str, letter_id: str):
     if client_id not in users_data:
         raise HTTPException(status_code=404, detail="User not found")
     
-    user = users_data[client_id]
     if client_id not in users_data:
-        initialize_user_fields(client_id) # 不足フィールドを補完
+        initialize_user_fields(client_id)
+    user = users_data[client_id]
 
     if letter_id in user.get("unopenedLetterIds", []):
         user["unopenedLetterIds"].remove(letter_id)
@@ -238,3 +238,65 @@ async def mark_letter_opened(client_id: str, letter_id: str):
         logging.warning(f"Letter {letter_id} not found in unopened for {client_id} to mark.")
         raise HTTPException(status_code=404, detail="Letter not found in user's unopened list")
     
+# --- Get all letters for a user (for mail box) ---
+@app.get("/letterbox/{client_id}")
+def get_letterbox_contents(client_id: str):
+    if client_id not in users_data:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if client_id not in users_data:
+        initialize_user_fields(client_id)
+    user = users_data[client_id]
+
+    letterbox_ids = user.get("receivedLetterIds", [])
+    
+    letters_in_box_details = []
+    for letter_id in letterbox_ids:
+        if letter_id in letters_data:
+            letter_detail = letters_data[letter_id]
+            # ★ クライアントが期待するフォーマットに整形 ★
+            formatted_letter = {
+                "id": letter_detail.get("id"),
+                "title": letter_detail.get("title"),
+                "content": letter_detail.get("content"),
+                "date_received": letter_detail.get("date_received", letter_detail.get("date_sent", "YYYY-MM-DD").split("T")[0]), # date_received優先、なければdate_sentから日付部分
+            }
+            letters_in_box_details.append(formatted_letter)
+        else:
+            logging.warning(f"Letter ID {letter_id} in {client_id}'s receivedLetterIds, but not found in letters_data.")
+
+    # 新しいものが上にくるように、リストの順番をdate_receivedでソート (任意)
+    letters_in_box_details.sort(key=lambda x: x.get("date_received", ""), reverse=True)
+
+    logging.info(f"📬 Fetched {len(letters_in_box_details)} letters from letterbox for {client_id}")
+    return letters_in_box_details
+
+# リクエストボディの型を定義 (Pydanticモデル)
+class PreferencesPayload(BaseModel):
+    emotion: str # "感情" の文字列を期待
+    custom: str # "受信好み設定" の文字列を期待
+
+@app.post("/update_preferences/{client_id}")
+async def update_preferences_endpoint(client_id: str, payload: PreferencesPayload):
+    if client_id not in users_data:
+        initialize_user_fields(client_id)
+        if client_id not in users_data: # それでもなければエラー
+             raise HTTPException(status_code=404, detail="User not found even after init attempt")
+        
+    user = users_data[client_id]
+    user.setdefault("preferences", {"emotion": "未設定", "custom": "未設定"})
+    
+    # ユーザ設定を更新
+    user["preferences"] = {
+        "emotion": payload.emotion,
+        "custom": payload.custom
+    }
+
+    save_json_data(USERS_FILE, users_data) # users.json に変更を保存
+    logging.info(f"Preferences updated for user {client_id}. New custom preference: '{'preferences'}'")
+    
+    return {
+        "status": "preferences_updated",
+        "user_id": client_id,
+        "updated_preferences": user["preferences"] # 更新後のpreferencesオブジェクトを返す
+    }

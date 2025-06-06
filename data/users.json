@@ -2,42 +2,45 @@
     "user-ab78abc35da5": {
         "id": "user-ab78abc35da5",
         "preferences": {
-            "emotion": "つらい",
-            "custom": "悲しい気持ち"
+            "emotion": "信頼",
+            "custom": "未設定"
         },
         "unopenedLetterIds": [],
-        "receivedLetterIds": [
-            "letter-0ca4a449-71ca-4ef9-8802-a43e4e0ef14c"
-        ],
+        "receivedLetterIds": [],
         "sentLetterIds": [
-            "letter-16b19357-2bbb-4948-b417-199ca5359cbb",
-            "letter-f4e46b93-2c1b-40e2-9a9d-d90daf4aa282",
-            "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964",
-            "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
-            "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc",
-            "letter-57751eab-f4bf-44c8-ab03-ce48d99876b6"
+            "letter-6b67b5f1-c7d2-4005-9f6a-b2a245f3549a",
+            "letter-7588bb62-74d4-41c0-b1ac-a097c5bcce34",
+            "letter-14579642-1d79-4a55-89f4-b1fc83e30600",
+            "letter-064b8fa0-aaf0-4f1e-87df-208790204cb2",
+            "letter-e3e7c2ce-0fca-40ea-a0ac-55df8ac5a3ec",
+            "letter-60e8258d-9390-4f7a-a895-7a0c3408faa0",
+            "letter-aee839c1-914e-4359-b323-0aae32f274a4",
+            "letter-d54f79f4-ca28-4868-a873-73c1932f9524",
+            "letter-da27871d-e3a5-4d28-a787-3c5575911c75",
+            "letter-8530ea4c-dc2a-44dd-a13f-a67a96b00194",
+            "letter-e5c2f06f-78d3-4a2a-a1ec-81f425884609"
         ],
-        "registered_at": "2025-06-04T19:04:17Z",
-        "last_letter_retrieved_at": 1749064231.065482
+        "registered_at": "2025-06-06T03:06:19Z",
+        "last_letter_retrieved_at": 0
     },
     "user-fb9bcce278a4": {
         "id": "user-fb9bcce278a4",
         "preferences": {
-            "emotion": "楽しい",
-            "custom": "明るい気持ち"
+            "emotion": "期待",
+            "custom": "未設定"
         },
-        "unopenedLetterIds": [],
+        "unopenedLetterIds": [
+            "letter-7588bb62-74d4-41c0-b1ac-a097c5bcce34",
+            "letter-14579642-1d79-4a55-89f4-b1fc83e30600",
+            "letter-064b8fa0-aaf0-4f1e-87df-208790204cb2",
+            "letter-e3e7c2ce-0fca-40ea-a0ac-55df8ac5a3ec",
+            "letter-60e8258d-9390-4f7a-a895-7a0c3408faa0"
+        ],
         "receivedLetterIds": [
-            "letter-16b19357-2bbb-4948-b417-199ca5359cbb",
-            "letter-54acca02-ae37-4c12-9e0d-12bb0f45c964",
-            "letter-0813929c-8bb1-41df-a13e-aa98dbceb152",
-            "letter-c65b7634-8f0f-43ec-bed6-e26700e698fc",
-            "letter-57751eab-f4bf-44c8-ab03-ce48d99876b6"
+            "letter-6b67b5f1-c7d2-4005-9f6a-b2a245f3549a"
         ],
-        "sentLetterIds": [
-            "letter-0ca4a449-71ca-4ef9-8802-a43e4e0ef14c"
-        ],
-        "registered_at": "2025-06-04T19:05:47Z",
-        "last_letter_retrieved_at": 1749068570.486631
+        "sentLetterIds": [],
+        "registered_at": "2025-06-06T03:06:35Z",
+        "last_letter_retrieved_at": 1749179529.242749
     }
 }

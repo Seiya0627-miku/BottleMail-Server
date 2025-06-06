@@ -3,7 +3,7 @@
 Windows 11 (VS Code, Powershell)
 
 ## 環境構築
-### 推奨される方法：venvを使う
+### A. 推奨される方法(venvを使う)
 
 ```
 $ python3 -m venv bottleMail-env
@@ -12,7 +12,7 @@ $ . bottileMail-env/bin/activate
 
 venvはPythonが公式で提供しているものであるため、安心して使うことができます。
 
-### 推奨されない方法：minicondaを使う
+### B. 推奨されない方法(minicondaを使う)
 ```
 $ conda create -n bottleMail-env python=3.11
 $ conda activate bottleMail-env
@@ -38,6 +38,7 @@ $ uvicorn server_api:app --host 0.0.0.0 --port 8000 --reload
 ```bash
 / (プロジェクトルート)
   server.py
+  server_api.py
   ...
   data/
     ├── users.json
